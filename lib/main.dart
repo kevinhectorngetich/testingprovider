@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         home: const MyHomePage(),
         routes: {
-          '/new': (context) => const Material(),
+          '/new': (context) => const NewBreadCrumbWidget(),
         },
       ),
     );
@@ -64,7 +64,7 @@ class BreadCrumb {
 // changenotifier that manages our breadcrumb
 class BreadCrumbProvider extends ChangeNotifier {
   final List<BreadCrumb> _items = [];
-  UnmodifiableListView<BreadCrumb> get item => UnmodifiableListView(_items);
+  UnmodifiableListView<BreadCrumb> get items => UnmodifiableListView(_items);
 
   void add(BreadCrumb breadCrumb) {
     for (final item in _items) {
@@ -83,11 +83,15 @@ class BreadCrumbProvider extends ChangeNotifier {
 // create an instance of our Breadcrumbprovider
 // we'll use  ChangeNotifierProvider
 
+typedef OnBreadCrumbTapped = void Function(BreadCrumb);
+
 class BreadCrumbsWidget extends StatelessWidget {
+  final OnBreadCrumbTapped onTapped;
   final UnmodifiableListView<BreadCrumb> breadCrumbs;
   const BreadCrumbsWidget({
     Key? key,
     required this.breadCrumbs,
+    required this.onTapped,
   }) : super(key: key);
 
   @override
@@ -95,10 +99,15 @@ class BreadCrumbsWidget extends StatelessWidget {
     return Wrap(
       //? not an arrow function??
       children: breadCrumbs.map((breadCrumb) {
-        return Text(
-          breadCrumb.title,
-          style: TextStyle(
-            color: breadCrumb.isActive ? Colors.blue : Colors.black,
+        return GestureDetector(
+          onTap: () {
+            onTapped(breadCrumb);
+          },
+          child: Text(
+            breadCrumb.title,
+            style: TextStyle(
+              color: breadCrumb.isActive ? Colors.blue : Colors.black,
+            ),
           ),
         );
       }).toList(),
@@ -115,6 +124,13 @@ class MyHomePage extends StatelessWidget {
       appBar: AppBar(),
       body: Column(
         children: [
+          Consumer<BreadCrumbProvider>(
+            builder: (context, value, child) {
+              return BreadCrumbsWidget(
+                breadCrumbs: value.items, onTapped: (BreadCrumb ) {  },
+              );
+            },
+          ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pushNamed(
@@ -124,6 +140,79 @@ class MyHomePage extends StatelessWidget {
             child: const Text('Add new bread crumb'),
           ),
           TextButton(
+            onPressed: () {
+              context.read<BreadCrumbProvider>().reset();
+            },
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class NewBreadCrumbWidget extends StatefulWidget {
+  const NewBreadCrumbWidget({super.key});
+
+  @override
+  State<NewBreadCrumbWidget> createState() => _NewBreadCrumbWidgetState();
+}
+
+class _NewBreadCrumbWidgetState extends State<NewBreadCrumbWidget> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    _controller = TextEditingController();
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Add new bread crumb',
+        ),
+      ),
+      body: Column(
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              hintText: 'Enter a new bread crumb here...',
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              final text = _controller.text;
+              if (text.isNotEmpty) {
+                final breadCrumb = BreadCrumb(isActive: false, name: text);
+                context.read<BreadCrumbProvider>().add(breadCrumb);
+                Navigator.of(context).pop();
+              }
+            },
+            child: const Text(
+              "Add",
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+
+
+ // NOTES ABOUT PROVIDER
+
             //? various ways of communicating with provider
             //?1 Read  -  used inside callbacks in a textbutton "contect.read()"
             // don't use it if you expecting a mutable value to change ui
@@ -150,14 +239,3 @@ class MyHomePage extends StatelessWidget {
             // has a child widget that doesn't get rebuild when the provider changes
             // this chold gets passed to the builder of the consumer
             // and can be reused regardless of changes to the provider
- 
-            onPressed: () { 
-              context.read<BreadCrumbProvider>().reset();
-            },
-            child: const Text('Reset'),
-          ),
-        ],
-      ),
-    );
-  }
-}
